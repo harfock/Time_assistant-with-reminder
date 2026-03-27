@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>日期時間提醒</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: 'Noto Serif TC', 'PingFang TC', serif;
+      background: #fff;
+    }
+
+    /* ══ MAIN WRAPPER ══ */
+    .wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ══ CLOCK ROW ══ */
+    .clock-row {
+      width: 100%;
+      display: flex;
+      flex-shrink: 0;
+      height: 55vh;
+    }
+
+    .clock-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* Date panel */
+    .date-panel {
+      flex: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      gap: 1.2vh;
+      overflow: hidden;
+    }
+    .date-display  { font-weight: 900; color: #fff; letter-spacing: 0.04em; line-height: 1; white-space: nowrap; font-size: 40px; }
+    .date-weekday  { font-weight: 700; color: #FFD700; letter-spacing: 0.15em; line-height: 1; font-size: 26px; }
+
+    /* Splitter */
+    .splitter {
+      height: 44px;
+      background: #FFD700;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      z-index: 20;
+      user-select: none;
+    }
+    .splitter.dragging { background: #fff200; }
+
+    .splitter-btns {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      flex-shrink: 0;
+      cursor: default;
+    }
+
+    .sp-btn {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      border: 2px solid #000;
+      background: #000; color: #FFD700;
+      font-family: inherit; font-weight: 900; font-size: 0.85rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1; flex-shrink: 0;
+    }
+    .sp-btn:active { transform: scale(0.88); }
+    .sp-btn.active { background: #CC0000; border-color: #CC0000; color: #fff; }
+    .sp-btn.warn   {
+      background: #FF6600; border-color: #FF6600; color: #fff;
+      animation: pulse 1.2s ease infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,102,0,.5); }
+      50%      { box-shadow: 0 0 0 6px rgba(255,102,0,0); }
+    }
+
+    .splitter-drag {
+      flex: 1; height: 100%;
+      cursor: ns-resize;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .splitter-drag::after {
+      content: '⠿⠿⠿';
+      color: rgba(0,0,0,.35); font-size: 13px; letter-spacing: 3px;
+      pointer-events: none;
+    }
+
+    /* Time panel */
+    .time-panel {
+      flex: 50;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #fff;
+      gap: 0.8vh; overflow: hidden;
+    }
+    .period-label { font-weight: 700; color: #000; letter-spacing: 0.2em; line-height: 1; font-size: 30px; }
+    .time-display { font-weight: 900; color: #000; letter-spacing: -0.02em; line-height: 1; font-size: 90px; font-variant-numeric: tabular-nums; }
+    .time-colon   { display: inline-block; animation: blink 1s step-start infinite; color: #CC0000; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* Right slider */
+    .slider-col {
+      width: 52px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #111; flex-shrink: 0; gap: 8px; padding: 12px 0;
+    }
+    .slider-label {
+      color: #FFD700; font-size: 0.65rem; font-weight: 700;
+      writing-mode: vertical-rl; text-orientation: mixed; opacity: 0.7; flex-shrink: 0;
+    }
+    #split-slider {
+      -webkit-appearance: slider-vertical; appearance: slider-vertical;
+      writing-mode: vertical-lr; direction: rtl;
+      width: 28px; flex: 1; cursor: pointer; accent-color: #FFD700;
+    }
+
+    /* ══ BOTTOM PANEL ══ */
+    .bottom-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-top: 3px solid #FFD700;
+      min-height: 0;
+    }
+
+    /* Free text row */
+    .free-text-row {
+      display: flex;
+      align-items: stretch;
+      background: #f4f4f4;
+      border-bottom: 2px solid #ddd;
+      flex-shrink: 0;
+      min-height: 64px;
+      max-height: 130px;
+    }
+    .note-wrap {
+      flex: 1;
+      display: flex; align-items: center;
+      padding: 8px 14px; overflow: hidden; min-width: 0;
+    }
+    #note-area {
+      width: 100%;
+      outline: none; border: none; background: transparent;
+      font-family: inherit; font-weight: 700; color: #000;
+      line-height: 1.25; overflow: hidden;
+      word-break: break-all; white-space: pre-wrap;
+      caret-color: #CC0000;
+    }
+    #note-area:empty::before { content: attr(data-placeholder); color: #bbb; font-weight: 400; }
+
+    .free-text-btns {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 6px; padding: 6px 10px; flex-shrink: 0;
+    }
+    .ctrl-btn {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 3px solid #FFD700;
+      font-family: inherit; font-weight: 900; font-size: 1.5rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 3px 10px rgba(0,0,0,.2);
+    }
+    .ctrl-btn:active { transform: scale(0.88); }
+    .btn-bigger  { background: #000; color: #FFD700; }
+    .btn-smaller { background: #FFD700; color: #000; }
+    .ctrl-btn:disabled { opacity: 0.25; box-shadow: none; }
+
+    /* ══ REMINDERS SECTION ══ */
+    .reminders-section {
+      flex: 1;
+      display: flex; flex-direction: column;
+      overflow: hidden; background: #fff;
+    }
+
+    .reminders-header {
+      display: flex; align-items: center;
+      background: #000; color: #FFD700;
+      padding: 10px 16px; gap: 12px;
+      flex-shrink: 0;
+    }
+    .reminders-title {
+      flex: 1; font-size: 1.5rem; font-weight: 900; letter-spacing: 0.1em;
+    }
+    .add-btn {
+      background: #FFD700; color: #000;
+      border: none; border-radius: 10px;
+      padding: 10px 22px;
+      font-family: inherit; font-weight: 900; font-size: 1.4rem;
+      cursor: pointer; white-space: nowrap;
+    }
+    .add-btn:active { transform: scale(0.92); }
+
+    /* Reminder list */
+    .reminders-list {
+      flex: 1; overflow-y: auto;
+      padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .reminders-list::-webkit-scrollbar { width: 8px; }
+    .reminders-list::-webkit-scrollbar-thumb { background: #FFD700; border-radius: 4px; }
+
+    .reminder-card {
+      border-radius: 12px;
+      border: 3px solid #ddd;
+      padding: 12px 14px;
+      background: #fafafa;
+      display: flex; align-items: flex-start; gap: 10px;
+      position: relative;
+    }
+    .reminder-card.pinned {
+      border-color: #FFD700;
+      background: #fffbe6;
+    }
+
+    .pin-col {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 2px solid #ccc;
+      background: #fff; color: #555;
+      font-size: 1.3rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-btn:active { transform: scale(0.88); }
+    .icon-btn.pin-on  { background: #FFD700; border-color: #FFD700; color: #000; }
+    .icon-btn.del-btn { border-color: #ffaaaa; color: #CC0000; }
+    .icon-btn.edit-btn { border-color: #aad4ff; color: #0055aa; }
+
+    .card-body { flex: 1; min-width: 0; }
+    .card-meta {
+      display: flex; flex-wrap: wrap; gap: 6px 14px;
+      margin-bottom: 6px;
+    }
+    .meta-pill {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 1rem; color: #555; font-weight: 700;
+    }
+    .meta-pill .mi { font-size: 1.1rem; }
+    .card-content {
+      font-size: 1.25rem; font-weight: 900; color: #000;
+      line-height: 1.3; word-break: break-all;
+    }
+    .pin-badge {
+      font-size: 0.75rem; font-weight: 700;
+      background: #FF6600; color: #fff;
+      border-radius: 6px; padding: 1px 7px;
+      display: none;
+    }
+    .reminder-card.pinned .pin-badge { display: inline-block; }
+
+    .repeat-badge {
+      font-size: 0.75rem; font-weight: 700;
+      background: #0055aa; color: #fff;
+      border-radius: 6px; padding: 1px 7px;
+    }
+
+    .card-actions {
+      display: flex; flex-direction: column; gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; color: #bbb;
+      font-size: 1.3rem; padding: 30px 0;
+      font-weight: 400;
+    }
+
+    /* ══ MODAL ══ */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 200;
+      display: flex; align-items: flex-end;
+    }
+    .modal-backdrop.hidden { display: none; }
+
+    .modal {
+      width: 100%; max-height: 92vh;
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      background: #000; color: #FFD700;
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    .modal-title { flex: 1; font-size: 1.6rem; font-weight: 900; }
+    .modal-close {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 2px solid #FFD700;
+      background: transparent; color: #FFD700;
+      font-size: 1.6rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .modal-body {
+      flex: 1; overflow-y: auto;
+      padding: 18px 18px 0;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    .field-group {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .field-label {
+      font-size: 1.1rem; font-weight: 700; color: #555;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .field-input {
+      font-family: inherit; font-weight: 700; font-size: 1.4rem;
+      border: 3px solid #ddd; border-radius: 10px;
+      padding: 10px 14px; width: 100%;
+      outline: none; color: #000;
+    }
+    .field-input:focus { border-color: #FFD700; }
+
+    /* Repeat selector */
+    .repeat-row {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .repeat-opt {
+      flex: 1; min-width: 80px;
+      padding: 10px 6px; border-radius: 10px;
+      border: 3px solid #ddd;
+      font-family: inherit; font-weight: 700; font-size: 1.1rem;
+      cursor: pointer; text-align: center; background: #fff;
+    }
+    .repeat-opt.sel { background: #FFD700; border-color: #FFD700; color: #000; }
+
+    .modal-footer {
+      padding: 14px 18px 20px;
+      display: flex; gap: 12px;
+      flex-shrink: 0;
+    }
+    .modal-save {
+      flex: 2; padding: 14px;
+      border-radius: 12px; border: none;
+      background: #000; color: #FFD700;
+      font-family: inherit; font-weight: 900; font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .modal-cancel {
+      flex: 1; padding: 14px;
+      border-radius: 12px; border: 3px solid #ddd;
+      background: #fff; color: #555;
+      font-family: inherit; font-weight: 700; font-size: 1.3rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- ── CLOCK ROW ── -->
+  <div class="clock-row" id="clock-row">
+    <div class="clock-area" id="clock-area">
+      <div class="date-panel" id="date-panel">
+        <div class="date-display"  id="date-display"></div>
+        <div class="date-weekday"  id="weekday-display"></div>
+      </div>
+      <div class="splitter" id="splitter">
+        <div class="splitter-btns">
+          <button class="sp-btn active" id="btn-toggle"  title="文字欄">文</button>
+          <button class="sp-btn"        id="btn-autofit" title="自動適配">⊡</button>
+        </div>
+        <div class="splitter-drag" id="splitter-drag"></div>
+      </div>
+      <div class="time-panel" id="time-panel">
+        <div class="period-label" id="period-display"></div>
+        <div class="time-display"  id="time-display"></div>
+      </div>
+    </div>
+    <div class="slider-col">
+      <span class="slider-label">日期</span>
+      <input type="range" id="split-slider" min="15" max="85" value="50" step="1" />
+      <span class="slider-label">時間</span>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM PANEL ── -->
+  <div class="bottom-panel" id="bottom-panel">
+
+    <!-- Free text row -->
+    <div class="free-text-row" id="free-text-row">
+      <div class="note-wrap">
+        <div id="note-area" contenteditable="true" spellcheck="false"
+             data-placeholder="輸入備注文字…"></div>
+      </div>
+      <div class="free-text-btns">
+        <button class="ctrl-btn btn-bigger"  id="btn-up">大</button>
+        <button class="ctrl-btn btn-smaller" id="btn-down">小</button>
+      </div>
+    </div>
+
+    <!-- Reminders -->
+    <div class="reminders-section">
+      <div class="reminders-header">
+        <span class="reminders-title">📋 提醒事項</span>
+        <button class="add-btn" id="add-reminder-btn">＋ 新增</button>
+      </div>
+      <div class="reminders-list" id="reminders-list"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ══ ADD / EDIT MODAL ══ -->
+<div class="modal-backdrop hidden" id="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">新增提醒</span>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label class="field-label">📅 日期</label>
+        <input class="field-input" type="date" id="f-date" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">⏰ 時間</label>
+        <input class="field-input" type="time" id="f-time" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">📍 地點</label>
+        <input class="field-input" type="text" id="f-loc" placeholder="例：診所、家中、藥房…" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">📝 內容</label>
+        <input class="field-input" type="text" id="f-content" placeholder="例：食藥、覆診、生日會…" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">🔁 重複</label>
+        <div class="repeat-row" id="repeat-row">
+          <button class="repeat-opt sel" data-val="none">不重複</button>
+          <button class="repeat-opt"     data-val="daily">每日</button>
+          <button class="repeat-opt"     data-val="weekly">每週</button>
+          <button class="repeat-opt"     data-val="monthly">每月</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" id="modal-cancel">取消</button>
+      <button class="modal-save"   id="modal-save">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════
+   CLOCK
+══════════════════════════════════ */
+const WEEKDAYS = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+function pad(n){ return String(n).padStart(2,'0'); }
+function getPeriod(h){ return h<12?'早上':h<18?'下午':'晚上'; }
+
+function tick(){
+  const now = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Hong_Kong'}));
+  const y=now.getFullYear(),m=now.getMonth()+1,d=now.getDate();
+  const h=now.getHours(),min=now.getMinutes();
+  document.getElementById('date-display').textContent    = `${y}年${m}月${d}日`;
+  document.getElementById('weekday-display').textContent = WEEKDAYS[now.getDay()];
+  document.getElementById('period-display').textContent  = getPeriod(h);
+  document.getElementById('time-display').innerHTML      =
+    `${pad(h)}<span class="time-colon">:</span>${pad(min)}`;
+}
+tick(); setInterval(tick,1000);
+
+/* ══════════════════════════════════
+   LAYOUT / SPLIT
+══════════════════════════════════ */
+let splitVal=50, footerVisible=true;
+const SCALES=[0.5,0.65,0.8,1,1.2,1.45,1.75];
+let scaleIdx=3;
+
+const clockRowEl  = document.getElementById('clock-row');
+const bottomEl    = document.getElementById('bottom-panel');
+const datePanelEl = document.getElementById('date-panel');
+const timePanelEl = document.getElementById('time-panel');
+const sliderEl    = document.getElementById('split-slider');
+const btnToggle   = document.getElementById('btn-toggle');
+const btnAutofit  = document.getElementById('btn-autofit');
+
+function applyLayout(){
+  const totalH = window.innerHeight;
+  const crH    = footerVisible ? Math.round(totalH*0.55) : totalH;
+  clockRowEl.style.height = crH + 'px';
+}
+
+function calcFontSizes(){
+  const dateH = datePanelEl.clientHeight;
+  const timeH = timePanelEl.clientHeight;
+  const vw    = window.innerWidth - 52;
+  const s     = SCALES[scaleIdx];
+  document.getElementById('date-display').style.fontSize    = Math.max(12,Math.floor(Math.min(vw*.115,dateH*.40)*s))+'px';
+  document.getElementById('weekday-display').style.fontSize = Math.max(10,Math.floor(Math.min(vw*.075,dateH*.26)*s))+'px';
+  document.getElementById('period-display').style.fontSize  = Math.max(10,Math.floor(Math.min(vw*.085,timeH*.28)*s))+'px';
+  document.getElementById('time-display').style.fontSize    = Math.max(12,Math.floor(Math.min(vw*.23, timeH*.58)*s))+'px';
+  checkOverflow();
+}
+
+function applySplit(v){
+  splitVal=Math.max(15,Math.min(85,v));
+  datePanelEl.style.flex=splitVal;
+  timePanelEl.style.flex=100-splitVal;
+  sliderEl.value=splitVal;
+  requestAnimationFrame(calcFontSizes);
+}
+
+function checkOverflow(){
+  const ov = document.getElementById('date-display').scrollWidth>datePanelEl.clientWidth+4
+          || datePanelEl.scrollHeight>datePanelEl.clientHeight+4
+          || document.getElementById('time-display').scrollWidth>timePanelEl.clientWidth+4;
+  btnAutofit.classList.toggle('warn',ov);
+}
+
+btnToggle.addEventListener('click',()=>{
+  footerVisible=!footerVisible;
+  btnToggle.classList.toggle('active',footerVisible);
+  bottomEl.style.display = footerVisible?'':'none';
+  applyLayout();
+  setTimeout(()=>{calcFontSizes();fitNoteFont();},50);
+});
+
+btnAutofit.addEventListener('click',()=>{
+  for(let i=SCALES.length-1;i>=0;i--){
+    scaleIdx=i; calcFontSizes(); updateFontBtns();
+    const noOv = document.getElementById('date-display').scrollWidth<=datePanelEl.clientWidth+4
+              && datePanelEl.scrollHeight<=datePanelEl.clientHeight+4
+              && document.getElementById('time-display').scrollWidth<=timePanelEl.clientWidth+4;
+    if(noOv) break;
+  }
+  btnAutofit.classList.remove('warn');
+});
+
+sliderEl.addEventListener('input',e=>applySplit(Number(e.target.value)));
+
+// Drag splitter
+const splitterDrag = document.getElementById('splitter-drag');
+let dragging=false, dStartY=0, dStartSplit=50;
+function dStart(e){ dragging=true; dStartY=e.touches?e.touches[0].clientY:e.clientY; dStartSplit=splitVal; document.getElementById('splitter').classList.add('dragging'); e.preventDefault(); }
+function dMove(e){ if(!dragging)return; const cy=e.touches?e.touches[0].clientY:e.clientY; applySplit(dStartSplit+((cy-dStartY)/clockRowEl.clientHeight)*100); e.preventDefault(); }
+function dEnd(){ if(!dragging)return; dragging=false; document.getElementById('splitter').classList.remove('dragging'); }
+splitterDrag.addEventListener('mousedown',dStart);
+splitterDrag.addEventListener('touchstart',dStart,{passive:false});
+window.addEventListener('mousemove',dMove);
+window.addEventListener('touchmove',dMove,{passive:false});
+window.addEventListener('mouseup',dEnd);
+window.addEventListener('touchend',dEnd);
+
+/* Font scale btns */
+function updateFontBtns(){
+  document.getElementById('btn-up').disabled   = scaleIdx===SCALES.length-1;
+  document.getElementById('btn-down').disabled = scaleIdx===0;
+}
+document.getElementById('btn-up').addEventListener('click',()=>{ if(scaleIdx<SCALES.length-1){scaleIdx++;calcFontSizes();updateFontBtns();}});
+document.getElementById('btn-down').addEventListener('click',()=>{ if(scaleIdx>0){scaleIdx--;calcFontSizes();updateFontBtns();}});
+updateFontBtns();
+
+/* Note font */
+const noteEl = document.getElementById('note-area');
+function fitNoteFont(){
+  if(!footerVisible) return;
+  const fh = document.getElementById('free-text-row').clientHeight;
+  if(fh<20) return;
+  let fs=Math.max(14,Math.min(Math.floor((fh*.88/2)*.82),100));
+  noteEl.style.fontSize=fs+'px'; noteEl.style.lineHeight='1.25';
+  while(fs>14 && noteEl.scrollHeight>fs*1.25*2+4){ fs-=2; noteEl.style.fontSize=fs+'px'; }
+}
+noteEl.addEventListener('input',fitNoteFont);
+
+window.addEventListener('resize',()=>{ applyLayout(); calcFontSizes(); fitNoteFont(); });
+
+/* ══════════════════════════════════
+   REMINDERS — localStorage
+══════════════════════════════════ */
+const LS_KEY = 'hk_reminders_v1';
+let reminders = [];
+
+function loadReminders(){
+  try { reminders = JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+  catch(e){ reminders=[]; }
+}
+function saveReminders(){ localStorage.setItem(LS_KEY, JSON.stringify(reminders)); }
+
+const REPEAT_LABEL = { none:'', daily:'每日', weekly:'每週', monthly:'每月' };
+
+/* Sort: pinned first, then by datetime desc (most recent on top) */
+function sortedReminders(){
+  return [...reminders].sort((a,b)=>{
+    if(a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    const da = (a.date||'9999')+(a.time||'99:99');
+    const db = (b.date||'9999')+(b.time||'99:99');
+    return da < db ? 1 : -1;
+  });
+}
+
+function fmtDate(s){
+  if(!s) return '';
+  const [y,m,d]=s.split('-');
+  return `${y}年${Number(m)}月${Number(d)}日`;
+}
+
+function renderReminders(){
+  const list = document.getElementById('reminders-list');
+  const sorted = sortedReminders();
+  if(!sorted.length){
+    list.innerHTML = '<div class="empty-state">尚未有提醒事項<br>按「＋ 新增」加入</div>';
+    return;
+  }
+  list.innerHTML = sorted.map(r=>{
+    const pinCls  = r.pinned ? 'pin-on' : '';
+    const cardCls = r.pinned ? 'pinned' : '';
+    const repLabel = r.repeat && r.repeat!=='none' ? `<span class="repeat-badge">${REPEAT_LABEL[r.repeat]||r.repeat}</span>` : '';
+    return `
+    <div class="reminder-card ${cardCls}" data-id="${r.id}">
+      <div class="pin-col">
+        <button class="icon-btn ${pinCls}" onclick="togglePin('${r.id}')" title="置頂/重複">📌</button>
+        <button class="icon-btn edit-btn"  onclick="openEdit('${r.id}')" title="編輯">✏️</button>
+        <button class="icon-btn del-btn"   onclick="deleteReminder('${r.id}')" title="刪除">🗑️</button>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          ${r.date    ? `<span class="meta-pill"><span class="mi">📅</span>${fmtDate(r.date)}</span>` : ''}
+          ${r.time    ? `<span class="meta-pill"><span class="mi">⏰</span>${r.time}</span>` : ''}
+          ${r.location? `<span class="meta-pill"><span class="mi">📍</span>${escHtml(r.location)}</span>` : ''}
+          ${repLabel}
+          <span class="pin-badge">置頂</span>
+        </div>
+        <div class="card-content">${escHtml(r.content||'（無內容）')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function togglePin(id){
+  const r = reminders.find(x=>x.id===id);
+  if(r){ r.pinned=!r.pinned; saveReminders(); renderReminders(); }
+}
+
+function deleteReminder(id){
+  if(!confirm('確定刪除此提醒？')) return;
+  reminders = reminders.filter(x=>x.id!==id);
+  saveReminders(); renderReminders();
+}
+
+/* ── Modal ── */
+const backdrop  = document.getElementById('modal-backdrop');
+const modalTitle= document.getElementById('modal-title');
+let editingId   = null;
+let selRepeat   = 'none';
+
+function openModal(title, data={}){
+  modalTitle.textContent = title;
+  document.getElementById('f-date').value    = data.date    || todayHK();
+  document.getElementById('f-time').value    = data.time    || '';
+  document.getElementById('f-loc').value     = data.location|| '';
+  document.getElementById('f-content').value = data.content || '';
+  selRepeat = data.repeat || 'none';
+  updateRepeatUI();
+  backdrop.classList.remove('hidden');
+  document.getElementById('f-content').focus();
+}
+
+function todayHK(){
+  const now = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Hong_Kong'}));
+  return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+}
+
+function closeModal(){
+  backdrop.classList.add('hidden');
+  editingId = null;
+}
+
+function updateRepeatUI(){
+  document.querySelectorAll('.repeat-opt').forEach(b=>{
+    b.classList.toggle('sel', b.dataset.val===selRepeat);
+  });
+}
+
+document.querySelectorAll('.repeat-opt').forEach(b=>{
+  b.addEventListener('click',()=>{ selRepeat=b.dataset.val; updateRepeatUI(); });
+});
+
+document.getElementById('add-reminder-btn').addEventListener('click',()=>{ editingId=null; openModal('新增提醒'); });
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+backdrop.addEventListener('click', e=>{ if(e.target===backdrop) closeModal(); });
+
+document.getElementById('modal-save').addEventListener('click',()=>{
+  const content = document.getElementById('f-content').value.trim();
+  if(!content){ alert('請填寫內容'); return; }
+  const data = {
+    date:     document.getElementById('f-date').value,
+    time:     document.getElementById('f-time').value,
+    location: document.getElementById('f-loc').value.trim(),
+    content,
+    repeat:   selRepeat,
+  };
+  if(editingId){
+    const r = reminders.find(x=>x.id===editingId);
+    if(r){ Object.assign(r, data); }
+  } else {
+    reminders.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2), pinned:false, ...data });
+  }
+  saveReminders(); renderReminders(); closeModal();
+});
+
+function openEdit(id){
+  const r = reminders.find(x=>x.id===id);
+  if(!r) return;
+  editingId = id;
+  openModal('編輯提醒', r);
+}
+
+/* ══════════════════════════════════
+   INIT
+══════════════════════════════════ */
+function init(){
+  applyLayout();
+  applySplit(50);
+  calcFontSizes();
+  fitNoteFont();
+  updateFontBtns();
+  loadReminders();
+  renderReminders();
+}
+window.addEventListener('load', init);
+setTimeout(init, 120);
+</script>
+</body>
+</html>
