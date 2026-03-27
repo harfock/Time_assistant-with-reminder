@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>長者時鐘 HK</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+}
+body {
+  font-family: 'Noto Serif TC', 'PingFang TC', serif;
+  background: #fff;
+  color: #000;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════
+   SECTION 1 — CLOCK
+   Natural height: two panels + splitter.
+   Default each panel = 38vh (adjustable).
+═══════════════════════════════════════ */
+.clock-section {
+  width: 100%;
+  display: flex;
+}
+
+.clock-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── Date panel ── */
+.date-panel {
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+  /* height controlled by JS */
+  height: 38vh;
+  min-height: 120px;
+}
+.date-display {
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: .04em;
+  line-height: 1;
+  white-space: nowrap;
+  /* font-size set by JS */
+  font-size: clamp(22px, 9vw, 80px);
+}
+.date-weekday {
+  font-weight: 700;
+  color: #FFD700;
+  letter-spacing: .15em;
+  line-height: 1;
+  font-size: clamp(14px, 5.5vw, 48px);
+}
+
+/* ── Splitter bar ── */
+.splitter {
+  height: 48px;
+  background: #FFD700;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  cursor: ns-resize;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  z-index: 10;
+}
+.splitter.dragging { background: #ffe033; }
+
+.splitter-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  cursor: default; /* buttons inside, not drag */
+}
+
+/* Small square buttons on splitter */
+.sp-btn {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 2px solid #000;
+  background: #000;
+  color: #FFD700;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: .85rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: transform .1s;
+}
+.sp-btn:active { transform: scale(.88); }
+.sp-btn.warn {
+  background: #c00;
+  border-color: #c00;
+  color: #fff;
+  animation: warn-pulse 1s ease infinite;
+}
+@keyframes warn-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(204,0,0,.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(204,0,0,0); }
+}
+
+/* Drag zone — fills rest of splitter */
+.splitter-drag {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.splitter-drag::after {
+  content: '▲  ▼';
+  font-size: .75rem;
+  letter-spacing: 4px;
+  color: rgba(0,0,0,.4);
+  pointer-events: none;
+}
+
+/* ── Time panel ── */
+.time-panel {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+  height: 38vh;
+  min-height: 120px;
+}
+.period-label {
+  font-weight: 700;
+  color: #000;
+  letter-spacing: .2em;
+  line-height: 1;
+  font-size: clamp(16px, 6vw, 56px);
+}
+.time-display {
+  font-weight: 900;
+  color: #000;
+  letter-spacing: -.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(40px, 18vw, 160px);
+}
+.time-colon {
+  display: inline-block;
+  animation: blink 1s step-start infinite;
+  color: #c00;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── Right slider column ── */
+.slider-col {
+  width: 50px;
+  background: #111;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  flex-shrink: 0;
+}
+.slider-label {
+  color: #FFD700;
+  font-size: .6rem;
+  font-weight: 700;
+  writing-mode: vertical-rl;
+  letter-spacing: .1em;
+  opacity: .75;
+  user-select: none;
+}
+#split-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  width: 26px;
+  flex: 1;
+  cursor: pointer;
+  accent-color: #FFD700;
+}
+
+/* ═══════════════════════════════════════
+   SECTION 2 — FREE TEXT NOTE
+═══════════════════════════════════════ */
+.note-section {
+  width: 100%;
+  border-top: 4px solid #FFD700;
+  border-bottom: 2px solid #ddd;
+  background: #f5f5f5;
+  display: flex;
+  align-items: stretch;
+  min-height: 80px;
+}
+.note-wrap {
+  flex: 1;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+#note-area {
+  width: 100%;
+  outline: none;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-weight: 700;
+  color: #000;
+  line-height: 1.3;
+  caret-color: #c00;
+  resize: none;
+  /* font-size set by JS */
+  font-size: 28px;
+  min-height: 40px;
+  word-break: break-all;
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+#note-area:empty::before {
+  content: attr(data-placeholder);
+  color: #bbb;
+  font-weight: 400;
+}
+.note-btns {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+.round-btn {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  border: 3px solid #FFD700;
+  font-family: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  transition: transform .1s;
+  font-size: 1.5rem;
+}
+.round-btn:active { transform: scale(.88); }
+.round-btn:disabled { opacity: .25; box-shadow: none; }
+.btn-black { background: #000; color: #FFD700; }
+.btn-gold  { background: #FFD700; color: #000; }
+
+/* ═══════════════════════════════════════
+   SECTION 3 — REMINDERS
+═══════════════════════════════════════ */
+.reminders-section {
+  width: 100%;
+  background: #fff;
+  padding-bottom: 40px;
+}
+
+/* Sticky header */
+.rem-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #000;
+  color: #FFD700;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rem-title {
+  flex: 1;
+  font-weight: 900;
+  font-size: 1.5rem;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+.rem-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Font size control */
+.fs-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #222;
+  border-radius: 30px;
+  padding: 4px 10px;
+}
+.fs-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 2px solid #FFD700;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .1s;
+}
+.fs-btn:active { transform: scale(.88); }
+.fs-btn:disabled { opacity: .25; }
+.fs-btn-big { background: #FFD700; color: #000; }
+.fs-btn-sml { background: #333;    color: #FFD700; font-size: .85rem; }
+.fs-lbl {
+  color: #FFD700;
+  font-weight: 700;
+  font-size: .85rem;
+  min-width: 30px;
+  text-align: center;
+}
+
+/* Add button */
+.add-rem-btn {
+  background: #FFD700;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 1.25rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.add-rem-btn:active { transform: scale(.92); }
+
+/* Card list */
+.rem-list {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.empty-msg {
+  text-align: center;
+  color: #bbb;
+  padding: 32px 0;
+  font-size: 1.3rem;
+}
+
+/* Reminder card */
+.rem-card {
+  border-radius: 14px;
+  border: 3px solid #ddd;
+  background: #fafafa;
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.rem-card.pinned {
+  border-color: #FFD700;
+  background: #fffbe6;
+}
+
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.act-btn {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  background: #fff;
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .1s;
+}
+.act-btn:active { transform: scale(.88); }
+.act-btn.pin    { border-color: #ddd; }
+.act-btn.pin.on { background: #FFD700; border-color: #FFD700; }
+.act-btn.edit   { border-color: #aad4ff; }
+.act-btn.del    { border-color: #ffaaaa; }
+
+.card-body { flex: 1; min-width: 0; }
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+}
+.tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: #555;
+  /* font-size from JS */
+}
+.badge {
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: #fff;
+}
+.badge-pin    { background: #e06000; display: none; }
+.pinned .badge-pin { display: inline; }
+.badge-repeat { background: #0055bb; }
+
+.card-text {
+  font-weight: 900;
+  color: #000;
+  line-height: 1.35;
+  word-break: break-all;
+  /* font-size from JS */
+}
+
+/* ═══════════════════════════════════════
+   MODAL (Add / Edit reminder)
+═══════════════════════════════════════ */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  z-index: 200;
+  align-items: flex-end;
+}
+.modal-bg.open { display: flex; }
+
+.modal-box {
+  width: 100%;
+  max-height: 94vh;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-head {
+  background: #000;
+  color: #FFD700;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.modal-head-title { flex: 1; font-weight: 900; font-size: 1.5rem; }
+.modal-x-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 2px solid #FFD700;
+  background: transparent;
+  color: #FFD700;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.f-group { display: flex; flex-direction: column; gap: 6px; }
+.f-label { font-weight: 700; font-size: 1.1rem; color: #555; }
+.f-input {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.4rem;
+  border: 3px solid #ddd;
+  border-radius: 10px;
+  padding: 12px 14px;
+  width: 100%;
+  outline: none;
+  color: #000;
+}
+.f-input:focus { border-color: #FFD700; }
+
+.repeat-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.rep-btn {
+  flex: 1;
+  min-width: 70px;
+  padding: 12px 6px;
+  border-radius: 10px;
+  border: 3px solid #ddd;
+  background: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  text-align: center;
+}
+.rep-btn.on { background: #FFD700; border-color: #FFD700; }
+
+.modal-foot {
+  padding: 12px 16px 24px;
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.modal-save {
+  flex: 2;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: #000;
+  color: #FFD700;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.modal-cancel {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  border: 3px solid #ddd;
+  background: #fff;
+  color: #555;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ SECTION 1: CLOCK ═══ -->
+<div class="clock-section" id="clockSection">
+  <div class="clock-col" id="clockCol">
+
+    <div class="date-panel" id="datePanel">
+      <div class="date-display"  id="dateDisplay"></div>
+      <div class="date-weekday"  id="weekdayDisplay"></div>
+    </div>
+
+    <div class="splitter" id="splitter">
+      <div class="splitter-left">
+        <button class="sp-btn" id="btnAutofit" title="自動適配字體">⊡</button>
+      </div>
+      <div class="splitter-drag" id="splitterDrag"></div>
+    </div>
+
+    <div class="time-panel" id="timePanel">
+      <div class="period-label" id="periodDisplay"></div>
+      <div class="time-display"  id="timeDisplay"></div>
+    </div>
+
+  </div>
+
+  <!-- Right slider -->
+  <div class="slider-col">
+    <span class="slider-label">日期</span>
+    <input type="range" id="splitSlider" min="10" max="90" value="50" step="1"/>
+    <span class="slider-label">時間</span>
+  </div>
+</div>
+
+<!-- ═══ SECTION 2: FREE TEXT ═══ -->
+<div class="note-section" id="noteSection">
+  <div class="note-wrap">
+    <div id="note-area"
+         contenteditable="true"
+         spellcheck="false"
+         data-placeholder="輸入備注文字…"></div>
+  </div>
+  <div class="note-btns">
+    <button class="round-btn btn-black" id="noteFontUp">大</button>
+    <button class="round-btn btn-gold"  id="noteFontDn">小</button>
+  </div>
+</div>
+
+<!-- ═══ SECTION 3: REMINDERS ═══ -->
+<div class="reminders-section">
+  <div class="rem-header">
+    <span class="rem-title">📋 提醒事項</span>
+    <div class="rem-controls">
+      <div class="fs-ctrl">
+        <button class="fs-btn fs-btn-sml" id="remFsDn">A-</button>
+        <span   class="fs-lbl"            id="remFsLbl">大</span>
+        <button class="fs-btn fs-btn-big" id="remFsUp">A+</button>
+      </div>
+      <button class="add-rem-btn" id="addRemBtn">＋ 新增</button>
+    </div>
+  </div>
+  <div class="rem-list" id="remList"></div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="modal-head-title" id="modalTitle">新增提醒</span>
+      <button class="modal-x-btn" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="f-group">
+        <label class="f-label">📅 日期</label>
+        <input class="f-input" type="date" id="fDate"/>
+      </div>
+      <div class="f-group">
+        <label class="f-label">⏰ 時間</label>
+        <input class="f-input" type="time" id="fTime"/>
+      </div>
+      <div class="f-group">
+        <label class="f-label">📍 地點</label>
+        <input class="f-input" type="text" id="fLoc" placeholder="例：診所、家中、藥房…"/>
+      </div>
+      <div class="f-group">
+        <label class="f-label">📝 內容</label>
+        <input class="f-input" type="text" id="fContent" placeholder="例：食藥、覆診、生日會…"/>
+      </div>
+      <div class="f-group">
+        <label class="f-label">🔁 重複</label>
+        <div class="repeat-row" id="repeatRow">
+          <button class="rep-btn on" data-val="none">不重複</button>
+          <button class="rep-btn"    data-val="daily">每日</button>
+          <button class="rep-btn"    data-val="weekly">每週</button>
+          <button class="rep-btn"    data-val="monthly">每月</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="modal-cancel" id="modalCancel">取消</button>
+      <button class="modal-save"   id="modalSave">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════
+   CLOCK — Hong Kong time (UTC+8)
+═══════════════════════════════════════ */
+const WD = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+const pad = n => String(n).padStart(2,'0');
+const period = h => h < 12 ? '早上' : h < 18 ? '下午' : '晚上';
+
+function hkNow() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
+}
+
+function tickClock() {
+  const n = hkNow();
+  document.getElementById('dateDisplay').textContent    = `${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日`;
+  document.getElementById('weekdayDisplay').textContent = WD[n.getDay()];
+  document.getElementById('periodDisplay').textContent  = period(n.getHours());
+  document.getElementById('timeDisplay').innerHTML =
+    `${pad(n.getHours())}<span class="time-colon">:</span>${pad(n.getMinutes())}`;
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+/* ═══════════════════════════════════════
+   CLOCK PANEL HEIGHT SPLIT
+   splitRatio: 0..1, fraction for date panel
+   Both panels height = clock panel height * ratio
+═══════════════════════════════════════ */
+let splitRatio = 0.50;
+
+const datePanel = document.getElementById('datePanel');
+const timePanel = document.getElementById('timePanel');
+const splitSlider = document.getElementById('splitSlider');
+
+// Panel heights are in vh units relative to the viewport.
+// We use actual pixel values so the panels have natural heights.
+const PANEL_VH = 40; // each panel default vh
+
+function applyPanelHeights() {
+  const totalH = window.innerHeight * (PANEL_VH * 2 / 100); // total px for both panels
+  const dh = Math.round(totalH * splitRatio);
+  const th = totalH - dh;
+  datePanel.style.height = Math.max(80, dh) + 'px';
+  timePanel.style.height = Math.max(80, th) + 'px';
+  calcClockFonts();
+}
+
+splitSlider.addEventListener('input', e => {
+  splitRatio = e.target.value / 100;
+  applyPanelHeights();
+});
+
+/* ── Splitter drag ── */
+const splitter     = document.getElementById('splitter');
+const splitterDrag = document.getElementById('splitterDrag');
+let isDragging = false, dragStartY = 0, dragStartRatio = 0.5;
+
+function beginDrag(e) {
+  isDragging = true;
+  dragStartY     = e.touches ? e.touches[0].clientY : e.clientY;
+  dragStartRatio = splitRatio;
+  splitter.classList.add('dragging');
+  e.preventDefault();
+}
+function moveDrag(e) {
+  if (!isDragging) return;
+  const y  = e.touches ? e.touches[0].clientY : e.clientY;
+  const dy = y - dragStartY;
+  const totalPx = window.innerHeight * (PANEL_VH * 2 / 100);
+  splitRatio = Math.max(0.1, Math.min(0.9, dragStartRatio + dy / totalPx));
+  splitSlider.value = Math.round(splitRatio * 100);
+  applyPanelHeights();
+  e.preventDefault();
+}
+function endDrag() {
+  if (!isDragging) return;
+  isDragging = false;
+  splitter.classList.remove('dragging');
+}
+splitterDrag.addEventListener('mousedown',  beginDrag);
+splitterDrag.addEventListener('touchstart', beginDrag, { passive: false });
+window.addEventListener('mousemove', moveDrag);
+window.addEventListener('touchmove', moveDrag, { passive: false });
+window.addEventListener('mouseup',   endDrag);
+window.addEventListener('touchend',  endDrag);
+
+/* ─ Auto-fit font ─ */
+const SCALES = [0.5, 0.65, 0.8, 1, 1.2, 1.5, 1.85];
+let clockScaleIdx = 3;
+
+function calcClockFonts() {
+  const dh  = datePanel.clientHeight;
+  const th  = timePanel.clientHeight;
+  const vw  = window.innerWidth - 50; // minus slider col
+  const s   = SCALES[clockScaleIdx];
+
+  datePanel.querySelector('.date-display').style.fontSize  = px(Math.min(vw * .13, dh * .44) * s, 16);
+  datePanel.querySelector('.date-weekday').style.fontSize  = px(Math.min(vw * .08, dh * .30) * s, 12);
+  timePanel.querySelector('.period-label').style.fontSize  = px(Math.min(vw * .09, th * .30) * s, 12);
+  timePanel.querySelector('.time-display').style.fontSize  = px(Math.min(vw * .26, th * .62) * s, 20);
+  detectOverflow();
+}
+
+function px(val, min = 10) { return Math.max(min, Math.floor(val)) + 'px'; }
+
+function detectOverflow() {
+  const ov =
+    datePanel.scrollHeight > datePanel.clientHeight + 4 ||
+    timePanel.scrollHeight > timePanel.clientHeight + 4;
+  document.getElementById('btnAutofit').classList.toggle('warn', ov);
+}
+
+document.getElementById('btnAutofit').addEventListener('click', () => {
+  for (let i = SCALES.length - 1; i >= 0; i--) {
+    clockScaleIdx = i;
+    calcClockFonts();
+    if (
+      datePanel.scrollHeight <= datePanel.clientHeight + 4 &&
+      timePanel.scrollHeight <= timePanel.clientHeight + 4
+    ) break;
+  }
+  document.getElementById('btnAutofit').classList.remove('warn');
+});
+
+window.addEventListener('resize', () => {
+  applyPanelHeights();
+  fitNoteFont();
+});
+
+/* ═══════════════════════════════════════
+   FREE TEXT NOTE — auto font size (max 2 rows)
+═══════════════════════════════════════ */
+const noteArea = document.getElementById('note-area');
+const NOTE_SIZES = [14, 18, 22, 28, 34, 42, 52];
+let noteIdx = 3; // default 28px
+
+function applyNoteSize() {
+  noteArea.style.fontSize = NOTE_SIZES[noteIdx] + 'px';
+  document.getElementById('noteFontUp').disabled = noteIdx === NOTE_SIZES.length - 1;
+  document.getElementById('noteFontDn').disabled = noteIdx === 0;
+  fitNoteFont();
+}
+function fitNoteFont() {
+  // adjust to keep within 2 lines visually
+  const lh  = NOTE_SIZES[noteIdx] * 1.3;
+  const max2 = lh * 2 + 8;
+  let fs = NOTE_SIZES[noteIdx];
+  noteArea.style.fontSize = fs + 'px';
+  while (fs > 12 && noteArea.scrollHeight > max2) {
+    fs -= 2;
+    noteArea.style.fontSize = fs + 'px';
+  }
+}
+noteArea.addEventListener('input', fitNoteFont);
+document.getElementById('noteFontUp').addEventListener('click', () => {
+  if (noteIdx < NOTE_SIZES.length - 1) { noteIdx++; applyNoteSize(); }
+});
+document.getElementById('noteFontDn').addEventListener('click', () => {
+  if (noteIdx > 0) { noteIdx--; applyNoteSize(); }
+});
+
+/* ═══════════════════════════════════════
+   REMINDERS — localStorage
+═══════════════════════════════════════ */
+const LS_DATA = 'hk_reminders_v2';
+const LS_RFS  = 'hk_rem_fs_v1';
+
+let reminders  = [];
+let remFsIdx   = 2; // default index = "大"
+
+const REM_FS = [
+  { label:'細',  tag:14, body:18, act:42, badge:11 },
+  { label:'中',  tag:17, body:22, act:48, badge:12 },
+  { label:'大',  tag:20, body:28, act:54, badge:13 },
+  { label:'特大',tag:24, body:34, act:62, badge:14 },
+];
+
+function loadData() {
+  try { reminders = JSON.parse(localStorage.getItem(LS_DATA)) || []; } catch { reminders = []; }
+  const sv = localStorage.getItem(LS_RFS);
+  if (sv !== null) remFsIdx = Math.max(0, Math.min(REM_FS.length - 1, +sv));
+}
+function saveData()  { localStorage.setItem(LS_DATA, JSON.stringify(reminders)); }
+function saveRfs()   { localStorage.setItem(LS_RFS,  remFsIdx); }
+
+const REPEAT_TXT = { none:'', daily:'每日', weekly:'每週', monthly:'每月' };
+
+function sortedRem() {
+  return [...reminders].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    const ka = (a.date || '9999') + (a.time || '9999');
+    const kb = (b.date || '9999') + (b.time || '9999');
+    return ka < kb ? 1 : -1; // most recent on top
+  });
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  const [y, m, d] = s.split('-');
+  return `${y}年${+m}月${+d}日`;
+}
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+function renderReminders() {
+  const fs  = REM_FS[remFsIdx];
+  const list = document.getElementById('remList');
+  const sorted = sortedRem();
+
+  // update header font
+  document.getElementById('remFsLbl').textContent = fs.label;
+  document.getElementById('remFsUp').disabled = remFsIdx === REM_FS.length - 1;
+  document.getElementById('remFsDn').disabled = remFsIdx === 0;
+
+  if (!sorted.length) {
+    list.innerHTML = `<div class="empty-msg" style="font-size:${fs.body}px">尚未有提醒事項<br>按「＋ 新增」加入</div>`;
+    return;
+  }
+
+  list.innerHTML = sorted.map(r => {
+    const repTxt = r.repeat && r.repeat !== 'none' ? REPEAT_TXT[r.repeat] : '';
+    return `
+    <div class="rem-card${r.pinned ? ' pinned' : ''}" data-id="${r.id}">
+      <div class="card-actions">
+        <button class="act-btn pin${r.pinned ? ' on' : ''}"
+          style="width:${fs.act}px;height:${fs.act}px;font-size:${Math.round(fs.act*.46)}px"
+          onclick="togglePin('${r.id}')">📌</button>
+        <button class="act-btn edit"
+          style="width:${fs.act}px;height:${fs.act}px;font-size:${Math.round(fs.act*.46)}px"
+          onclick="openEdit('${r.id}')">✏️</button>
+        <button class="act-btn del"
+          style="width:${fs.act}px;height:${fs.act}px;font-size:${Math.round(fs.act*.46)}px"
+          onclick="delReminder('${r.id}')">🗑️</button>
+      </div>
+      <div class="card-body">
+        <div class="card-tags">
+          ${r.date    ? `<span class="tag" style="font-size:${fs.tag}px">📅 ${fmtDate(r.date)}</span>` : ''}
+          ${r.time    ? `<span class="tag" style="font-size:${fs.tag}px">⏰ ${r.time}</span>` : ''}
+          ${r.location? `<span class="tag" style="font-size:${fs.tag}px">📍 ${esc(r.location)}</span>` : ''}
+          ${repTxt    ? `<span class="badge badge-repeat" style="font-size:${fs.badge}px">${repTxt}</span>` : ''}
+          <span class="badge badge-pin" style="font-size:${fs.badge}px">置頂</span>
+        </div>
+        <div class="card-text" style="font-size:${fs.body}px">${esc(r.content || '（無內容）')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePin(id) {
+  const r = reminders.find(x => x.id === id);
+  if (r) { r.pinned = !r.pinned; saveData(); renderReminders(); }
+}
+function delReminder(id) {
+  if (!confirm('確定刪除此提醒？')) return;
+  reminders = reminders.filter(x => x.id !== id);
+  saveData(); renderReminders();
+}
+
+/* ── Reminder font size ── */
+document.getElementById('remFsUp').addEventListener('click', () => {
+  if (remFsIdx < REM_FS.length - 1) { remFsIdx++; saveRfs(); renderReminders(); }
+});
+document.getElementById('remFsDn').addEventListener('click', () => {
+  if (remFsIdx > 0) { remFsIdx--; saveRfs(); renderReminders(); }
+});
+
+/* ═══════════════════════════════════════
+   MODAL
+═══════════════════════════════════════ */
+const modalBg = document.getElementById('modalBg');
+let editId = null;
+let selRepeat = 'none';
+
+function todayStr() {
+  const n = hkNow();
+  return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;
+}
+function setRepeat(v) {
+  selRepeat = v;
+  document.querySelectorAll('.rep-btn').forEach(b =>
+    b.classList.toggle('on', b.dataset.val === v));
+}
+function openModal(title, data = {}) {
+  editId = data.id || null;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('fDate').value    = data.date     || todayStr();
+  document.getElementById('fTime').value    = data.time     || '';
+  document.getElementById('fLoc').value     = data.location || '';
+  document.getElementById('fContent').value = data.content  || '';
+  setRepeat(data.repeat || 'none');
+  modalBg.classList.add('open');
+  setTimeout(() => document.getElementById('fContent').focus(), 100);
+}
+function closeModal() {
+  modalBg.classList.remove('open');
+  editId = null;
+}
+
+document.querySelectorAll('.rep-btn').forEach(b =>
+  b.addEventListener('click', () => setRepeat(b.dataset.val)));
+document.getElementById('addRemBtn').addEventListener('click',  () => openModal('新增提醒'));
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalCancel').addEventListener('click',closeModal);
+modalBg.addEventListener('click', e => { if (e.target === modalBg) closeModal(); });
+
+document.getElementById('modalSave').addEventListener('click', () => {
+  const content = document.getElementById('fContent').value.trim();
+  if (!content) { alert('請填寫內容'); return; }
+  const data = {
+    date:     document.getElementById('fDate').value,
+    time:     document.getElementById('fTime').value,
+    location: document.getElementById('fLoc').value.trim(),
+    content,
+    repeat:   selRepeat,
+  };
+  if (editId) {
+    const r = reminders.find(x => x.id === editId);
+    if (r) Object.assign(r, data);
+  } else {
+    reminders.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      pinned: false,
+      ...data,
+    });
+  }
+  saveData(); renderReminders(); closeModal();
+});
+
+function openEdit(id) {
+  const r = reminders.find(x => x.id === id);
+  if (r) openModal('編輯提醒', r);
+}
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+function init() {
+  loadData();
+  applyPanelHeights();
+  calcClockFonts();
+  applyNoteSize();
+  renderReminders();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+// Second pass after fonts load
+window.addEventListener('load', () => { calcClockFonts(); fitNoteFont(); });
+</script>
+</body>
+</html>
