@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>長者時鐘 HK</title>
+<title>大字時鐘記事冊 HK</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet"/>
 <style>
 /* ═══════════════════════════════════════
@@ -1013,5 +1013,29 @@ if (document.readyState === 'loading') {
 // Second pass after fonts load
 window.addEventListener('load', () => { calcClockFonts(); fitNoteFont(); });
 </script>
+
+   <div class="flex flex-col sm:flex-row justify-center items-center gap-4 my-8 px-4">
+    
+    <a href="https://harfock.github.io/" 
+       class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-6 rounded-xl transition-all active:scale-95 shadow-lg border border-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        Game Room
+    </a>
+
+    <a href="https://youtube.com/@YOUR_CHANNEL" target="_blank"
+       class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-all active:scale-95 shadow-lg">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+        </svg>
+        Watch Tutorials
+    </a>
+</div>
+
+<footer class="pb-10 text-center text-slate-500 text-xs">
+    © 2026 Harfock Games
+</footer>
+
 </body>
 </html>
