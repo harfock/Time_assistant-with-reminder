@@ -604,14 +604,18 @@ body {
 <div class="reminders-section">
   <div class="rem-header">
     <span class="rem-title">📋 提醒事項</span>
-    <div class="rem-controls">
-      <div class="fs-ctrl">
-        <button class="fs-btn fs-btn-sml" id="remFsDn">A-</button>
-        <span   class="fs-lbl"            id="remFsLbl">大</span>
-        <button class="fs-btn fs-btn-big" id="remFsUp">A+</button>
-      </div>
-      <button class="add-rem-btn" id="addRemBtn">＋ 新增</button>
-    </div>
+   <div class="rem-controls">
+  <button class="add-rem-btn" style="background:#444; color:#FFD700; margin-right:5px;" id="exportBtn" title="匯出備份">📤 匯出</button>
+  <button class="add-rem-btn" style="background:#444; color:#FFD700; margin-right:5px;" id="importBtn" title="匯入備份">📥 匯入</button>
+  <input type="file" id="fileInput" style="display:none" accept=".json">
+
+  <div class="fs-ctrl">
+    <button class="fs-btn fs-btn-sml" id="remFsDn">A-</button>
+    <span class="fs-lbl" id="remFsLbl">大</span>
+    <button class="fs-btn fs-btn-big" id="remFsUp">A+</button>
+  </div>
+  <button class="add-rem-btn" id="addRemBtn">＋ 新增</button>
+</div>
   </div>
   <div class="rem-list" id="remList"></div>
 </div>
@@ -994,7 +998,64 @@ function openEdit(id) {
   const r = reminders.find(x => x.id === id);
   if (r) openModal('編輯提醒', r);
 }
+/* ═══════════════════════════════════════
+   IMPORT / EXPORT LOGIC
+═══════════════════════════════════════ */
+const fileInput = document.getElementById('fileInput');
 
+// --- Export Function ---
+document.getElementById('exportBtn').addEventListener('click', () => {
+    const data = {
+        reminders: reminders,
+        remFsIdx: remFsIdx,
+        timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    link.href = url;
+    link.download = `hk_clock_backup_${new Date().toLocaleDateString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+});
+
+// --- Import Function ---
+document.getElementById('importBtn').addEventListener('click', () => {
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const importedData = JSON.parse(event.target.result);
+            
+            if (confirm('匯入將會覆蓋現有所有提醒事項，確定嗎？')) {
+                // Update local variables
+                reminders = importedData.reminders || [];
+                remFsIdx = importedData.remFsIdx || 2;
+                
+                // Save to localStorage
+                saveData();
+                saveRfs();
+                
+                // Refresh UI
+                renderReminders();
+                alert('匯入成功！');
+            }
+        } catch (err) {
+            alert('錯誤：無效的備份檔案格式。');
+        }
+    };
+    reader.readAsText(file);
+    // Reset input so the same file can be selected again if needed
+    e.target.value = ''; 
+});
 /* ═══════════════════════════════════════
    INIT
 ═══════════════════════════════════════ */
@@ -1035,6 +1096,7 @@ window.addEventListener('load', () => { calcClockFonts(); fitNoteFont(); });
 
 <footer class="pb-10 text-center text-slate-500 text-xs">
     © 2026 Harfock Games
+   <button onclick="location.reload(true)" class="sp-btn" style="background:#444;">↻</button>
 </footer>
 
 </body>
