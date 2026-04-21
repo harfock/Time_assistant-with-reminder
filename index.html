@@ -288,10 +288,50 @@ body {
   color: #FFD700;
   padding: 12px 14px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column; /* Stack vertically */
+  gap: 12px;
 }
+.rem-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  /* Ensure the Add button takes the full width or 2nd row */
+  .add-rem-btn-wide {
+    width: 100%;
+    background: #FFD700;
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+  /* Footer adjustments */
+  .footer-links {
+    display: flex;
+    flex-direction: column; /* Two rows */
+    gap: 15px;
+    margin: 20px 0;
+    padding: 0 10px;
+  }
+  .footer-link-btn {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: white;
+  }
 .rem-title {
   flex: 1;
   font-weight: 900;
@@ -603,21 +643,18 @@ body {
 <!-- ═══ SECTION 3: REMINDERS ═══ -->
 <div class="reminders-section">
   <div class="rem-header">
+  <div class="rem-header-top">
     <span class="rem-title">📋 提醒事項</span>
-   <div class="rem-controls">
-  <button class="add-rem-btn" style="background:#444; color:#FFD700; margin-right:5px;" id="exportBtn" title="匯出備份">📤 匯出</button>
-  <button class="add-rem-btn" style="background:#444; color:#FFD700; margin-right:5px;" id="importBtn" title="匯入備份">📥 匯入</button>
-  <input type="file" id="fileInput" style="display:none" accept=".json">
-
-  <div class="fs-ctrl">
-    <button class="fs-btn fs-btn-sml" id="remFsDn">A-</button>
-    <span class="fs-lbl" id="remFsLbl">大</span>
-    <button class="fs-btn fs-btn-big" id="remFsUp">A+</button>
+    <div class="rem-controls">
+      <button class="add-rem-btn" style="background:#444; color:#FFD700;" id="exportBtn">📤 匯出</button>
+      <button class="add-rem-btn" style="background:#444; color:#FFD700;" id="importBtn">📥 匯入</button>
+      <div class="fs-ctrl">
+        <button class="fs-btn fs-btn-sml" id="remFsDn">A-</button>
+        <button class="fs-btn fs-btn-big" id="remFsUp">A+</button>
+      </div>
+    </div>
   </div>
-  <button class="add-rem-btn" id="addRemBtn">＋ 新增</button>
-</div>
-  </div>
-  <div class="rem-list" id="remList"></div>
+  <button class="add-rem-btn-wide" id="addRemBtn">＋ 新增提醒事項</button>
 </div>
 
 <!-- ═══ MODAL ═══ -->
@@ -676,6 +713,8 @@ function hkNow() {
 
 function tickClock() {
   const n = hkNow();
+  let h = n.getHours();
+  const displayH = h % 12 || 12; // Converts 0 to 12 and 13-23 to 1-11
   document.getElementById('dateDisplay').textContent    = `${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日`;
   document.getElementById('weekdayDisplay').textContent = WD[n.getDay()];
   document.getElementById('periodDisplay').textContent  = period(n.getHours());
@@ -1078,18 +1117,14 @@ window.addEventListener('load', () => { calcClockFonts(); fitNoteFont(); });
    <div class="flex flex-col sm:flex-row justify-center items-center gap-4 my-8 px-4">
     
     <a href="https://harfock.github.io/gamePortal60/"  
-       class="flex items-center justify-center gap-3 bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-8 rounded-2xl transition-all active:scale-95 shadow-xl border-2 border-slate-500 w-full sm:w-auto">
-        <svg style="width:20px; height:20px; flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-        </svg>
+       style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #334155; color: white; padding: 20px; border-radius: 15px; text-decoration: none; font-weight: bold; font-size: 1.4rem;">
+        <span>🏠</span>
         <span style="font-size: 1.6rem; line-height: 1.2;">返回 智醒長者·精準養生-遊戲大廳</span>
     </a>
 
     <a href="https://youtube.com/" target="_blank"
-       class="flex items-center justify-center gap-3 bg-red-600 hover:bg-red-700 text-white font-bold py-5 px-8 rounded-2xl transition-all active:scale-95 shadow-xl w-full sm:w-auto">
-        <svg style="width:20px; height:20px; flex-shrink:0;" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
-        </svg>
+       style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #dc2626; color: white; padding: 20px; border-radius: 15px; text-decoration: none; font-weight: bold; font-size: 1.4rem;">
+        <span>📺</span>
         <span style="font-size: 1.6rem; line-height: 1.2;">Watch Shorts for Healthy Information 智醒長者·精準養生-短片平台</span>
     </a>
 </div>
