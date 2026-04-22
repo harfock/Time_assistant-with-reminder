@@ -288,50 +288,15 @@ body {
   color: #FFD700;
   padding: 12px 14px;
   display: flex;
-  flex-direction: column; /* Stack vertically */
-  gap: 12px;
+  flex-direction: column; /* Stack into rows */
+  gap: 10px;
 }
 .rem-header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  /* Ensure the Add button takes the full width or 2nd row */
-  .add-rem-btn-wide {
-    width: 100%;
-    background: #FFD700;
-    color: #000;
-    border: none;
-    border-radius: 10px;
-    padding: 12px;
-    font-family: inherit;
-    font-weight: 900;
-    font-size: 1.4rem;
-    cursor: pointer;
-  }
-  /* Footer adjustments */
-  .footer-links {
-    display: flex;
-    flex-direction: column; /* Two rows */
-    gap: 15px;
-    margin: 20px 0;
-    padding: 0 10px;
-  }
-  .footer-link-btn {
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 15px;
-    border-radius: 12px;
-    font-weight: bold;
-    font-size: 1.2rem;
-    color: white;
-  }
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
 .rem-title {
   flex: 1;
   font-weight: 900;
@@ -378,7 +343,22 @@ body {
   text-align: center;
 }
 
-/* Add button */
+/* Add button - Wide version for 2nd row */
+.add-rem-btn-wide {
+  background: #FFD700;
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 1.4rem;
+  cursor: pointer;
+  width: 100%;
+}
+.add-rem-btn-wide:active { transform: scale(.96); }
+
+/* Utility add button for reference */
 .add-rem-btn {
   background: #FFD700;
   color: #000;
@@ -390,9 +370,7 @@ body {
   font-size: 1.25rem;
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
 }
-.add-rem-btn:active { transform: scale(.92); }
 
 /* Card list */
 .rem-list {
@@ -595,7 +573,6 @@ body {
 </head>
 <body>
 
-<!-- ═══ SECTION 1: CLOCK ═══ -->
 <div class="clock-section" id="clockSection">
   <div class="clock-col" id="clockCol">
 
@@ -618,7 +595,6 @@ body {
 
   </div>
 
-  <!-- Right slider -->
   <div class="slider-col">
     <span class="slider-label">日期</span>
     <input type="range" id="splitSlider" min="10" max="90" value="50" step="1"/>
@@ -626,7 +602,6 @@ body {
   </div>
 </div>
 
-<!-- ═══ SECTION 2: FREE TEXT ═══ -->
 <div class="note-section" id="noteSection">
   <div class="note-wrap">
     <div id="note-area"
@@ -640,24 +615,27 @@ body {
   </div>
 </div>
 
-<!-- ═══ SECTION 3: REMINDERS ═══ -->
 <div class="reminders-section">
   <div class="rem-header">
-  <div class="rem-header-top">
-    <span class="rem-title">📋 提醒事項</span>
-    <div class="rem-controls">
-      <button class="add-rem-btn" style="background:#444; color:#FFD700;" id="exportBtn">📤 匯出</button>
-      <button class="add-rem-btn" style="background:#444; color:#FFD700;" id="importBtn">📥 匯入</button>
-      <div class="fs-ctrl">
-        <button class="fs-btn fs-btn-sml" id="remFsDn">A-</button>
-        <button class="fs-btn fs-btn-big" id="remFsUp">A+</button>
+    <div class="rem-header-top">
+      <span class="rem-title">📋 提醒事項</span>
+      <div class="rem-controls">
+        <button class="add-rem-btn" style="background:#444; color:#FFD700; margin-right:5px;" id="exportBtn" title="匯出備份">📤 匯出</button>
+        <button class="add-rem-btn" style="background:#444; color:#FFD700; margin-right:5px;" id="importBtn" title="匯入備份">📥 匯入</button>
+        <input type="file" id="fileInput" style="display:none" accept=".json">
+
+        <div class="fs-ctrl">
+          <button class="fs-btn fs-btn-sml" id="remFsDn">A-</button>
+          <span class="fs-lbl" id="remFsLbl">大</span>
+          <button class="fs-btn fs-btn-big" id="remFsUp">A+</button>
+        </div>
       </div>
     </div>
+    <button class="add-rem-btn-wide" id="addRemBtn">＋ 新增提醒事項</button>
   </div>
-  <button class="add-rem-btn-wide" id="addRemBtn">＋ 新增提醒事項</button>
+  <div class="rem-list" id="remList"></div>
 </div>
 
-<!-- ═══ MODAL ═══ -->
 <div class="modal-bg" id="modalBg">
   <div class="modal-box">
     <div class="modal-head">
@@ -713,8 +691,6 @@ function hkNow() {
 
 function tickClock() {
   const n = hkNow();
-  let h = n.getHours();
-  const displayH = h % 12 || 12; // Converts 0 to 12 and 13-23 to 1-11
   document.getElementById('dateDisplay').textContent    = `${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日`;
   document.getElementById('weekdayDisplay').textContent = WD[n.getDay()];
   document.getElementById('periodDisplay').textContent  = period(n.getHours());
@@ -726,8 +702,6 @@ setInterval(tickClock, 1000);
 
 /* ═══════════════════════════════════════
    CLOCK PANEL HEIGHT SPLIT
-   splitRatio: 0..1, fraction for date panel
-   Both panels height = clock panel height * ratio
 ═══════════════════════════════════════ */
 let splitRatio = 0.50;
 
@@ -735,12 +709,10 @@ const datePanel = document.getElementById('datePanel');
 const timePanel = document.getElementById('timePanel');
 const splitSlider = document.getElementById('splitSlider');
 
-// Panel heights are in vh units relative to the viewport.
-// We use actual pixel values so the panels have natural heights.
-const PANEL_VH = 40; // each panel default vh
+const PANEL_VH = 40;
 
 function applyPanelHeights() {
-  const totalH = window.innerHeight * (PANEL_VH * 2 / 100); // total px for both panels
+  const totalH = window.innerHeight * (PANEL_VH * 2 / 100);
   const dh = Math.round(totalH * splitRatio);
   const th = totalH - dh;
   datePanel.style.height = Math.max(80, dh) + 'px';
@@ -794,7 +766,7 @@ let clockScaleIdx = 3;
 function calcClockFonts() {
   const dh  = datePanel.clientHeight;
   const th  = timePanel.clientHeight;
-  const vw  = window.innerWidth - 50; // minus slider col
+  const vw  = window.innerWidth - 50;
   const s   = SCALES[clockScaleIdx];
 
   datePanel.querySelector('.date-display').style.fontSize  = px(Math.min(vw * .13, dh * .44) * s, 16);
@@ -831,11 +803,11 @@ window.addEventListener('resize', () => {
 });
 
 /* ═══════════════════════════════════════
-   FREE TEXT NOTE — auto font size (max 2 rows)
+   FREE TEXT NOTE
 ═══════════════════════════════════════ */
 const noteArea = document.getElementById('note-area');
 const NOTE_SIZES = [14, 18, 22, 28, 34, 42, 52];
-let noteIdx = 3; // default 28px
+let noteIdx = 3;
 
 function applyNoteSize() {
   noteArea.style.fontSize = NOTE_SIZES[noteIdx] + 'px';
@@ -844,7 +816,6 @@ function applyNoteSize() {
   fitNoteFont();
 }
 function fitNoteFont() {
-  // adjust to keep within 2 lines visually
   const lh  = NOTE_SIZES[noteIdx] * 1.3;
   const max2 = lh * 2 + 8;
   let fs = NOTE_SIZES[noteIdx];
@@ -869,7 +840,7 @@ const LS_DATA = 'hk_reminders_v2';
 const LS_RFS  = 'hk_rem_fs_v1';
 
 let reminders  = [];
-let remFsIdx   = 2; // default index = "大"
+let remFsIdx   = 2;
 
 const REM_FS = [
   { label:'細',  tag:14, body:18, act:42, badge:11 },
@@ -893,7 +864,7 @@ function sortedRem() {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     const ka = (a.date || '9999') + (a.time || '9999');
     const kb = (b.date || '9999') + (b.time || '9999');
-    return ka < kb ? 1 : -1; // most recent on top
+    return ka < kb ? 1 : -1;
   });
 }
 
@@ -903,10 +874,7 @@ function fmtDate(s) {
   return `${y}年${+m}月${+d}日`;
 }
 function esc(s) {
-  return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function renderReminders() {
@@ -914,7 +882,6 @@ function renderReminders() {
   const list = document.getElementById('remList');
   const sorted = sortedRem();
 
-  // update header font
   document.getElementById('remFsLbl').textContent = fs.label;
   document.getElementById('remFsUp').disabled = remFsIdx === REM_FS.length - 1;
   document.getElementById('remFsDn').disabled = remFsIdx === 0;
@@ -963,7 +930,6 @@ function delReminder(id) {
   saveData(); renderReminders();
 }
 
-/* ── Reminder font size ── */
 document.getElementById('remFsUp').addEventListener('click', () => {
   if (remFsIdx < REM_FS.length - 1) { remFsIdx++; saveRfs(); renderReminders(); }
 });
@@ -1042,59 +1008,38 @@ function openEdit(id) {
 ═══════════════════════════════════════ */
 const fileInput = document.getElementById('fileInput');
 
-// --- Export Function ---
 document.getElementById('exportBtn').addEventListener('click', () => {
-    const data = {
-        reminders: reminders,
-        remFsIdx: remFsIdx,
-        timestamp: new Date().toISOString()
-    };
-    
+    const data = { reminders, remFsIdx, timestamp: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    
     link.href = url;
     link.download = `hk_clock_backup_${new Date().toLocaleDateString()}.json`;
     link.click();
     URL.revokeObjectURL(url);
 });
 
-// --- Import Function ---
-document.getElementById('importBtn').addEventListener('click', () => {
-    fileInput.click();
-});
+document.getElementById('importBtn').addEventListener('click', () => { fileInput.click(); });
 
 fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
         try {
             const importedData = JSON.parse(event.target.result);
-            
             if (confirm('匯入將會覆蓋現有所有提醒事項，確定嗎？')) {
-                // Update local variables
                 reminders = importedData.reminders || [];
                 remFsIdx = importedData.remFsIdx || 2;
-                
-                // Save to localStorage
-                saveData();
-                saveRfs();
-                
-                // Refresh UI
-                renderReminders();
+                saveData(); saveRfs(); renderReminders();
                 alert('匯入成功！');
             }
-        } catch (err) {
-            alert('錯誤：無效的備份檔案格式。');
-        }
+        } catch (err) { alert('錯誤：無效的備份檔案格式。'); }
     };
     reader.readAsText(file);
-    // Reset input so the same file can be selected again if needed
     e.target.value = ''; 
 });
+
 /* ═══════════════════════════════════════
    INIT
 ═══════════════════════════════════════ */
@@ -1110,27 +1055,27 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
-// Second pass after fonts load
 window.addEventListener('load', () => { calcClockFonts(); fitNoteFont(); });
 </script>
 
-   <div class="flex flex-col sm:flex-row justify-center items-center gap-4 my-8 px-4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 15px; margin: 30px 15px; padding: 0 10px;">
     
     <a href="https://harfock.github.io/gamePortal60/"  
-       style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #334155; color: white; padding: 20px; border-radius: 15px; text-decoration: none; font-weight: bold; font-size: 1.4rem;">
-        <span>🏠</span>
-        <span style="font-size: 1.6rem; line-height: 1.2;">返回 智醒長者·精準養生-遊戲大廳</span>
+       style="display: flex; align-items: center; justify-content: center; gap: 12px; background: #334155; color: white; padding: 20px; border-radius: 15px; text-decoration: none; font-weight: bold; width: 100%; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <span style="font-size: 1.8rem;">🏠</span>
+        <span style="font-size: 1.4rem; line-height: 1.2;">返回 智醒長者·精準養生-遊戲大廳</span>
     </a>
 
     <a href="https://youtube.com/" target="_blank"
-       style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #dc2626; color: white; padding: 20px; border-radius: 15px; text-decoration: none; font-weight: bold; font-size: 1.4rem;">
-        <span>📺</span>
-        <span style="font-size: 1.6rem; line-height: 1.2;">Watch Shorts for Healthy Information 智醒長者·精準養生-短片平台</span>
+       style="display: flex; align-items: center; justify-content: center; gap: 12px; background: #dc2626; color: white; padding: 20px; border-radius: 15px; text-decoration: none; font-weight: bold; width: 100%; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <span style="font-size: 1.8rem;">📺</span>
+        <span style="font-size: 1.4rem; line-height: 1.2;">智醒長者·精準養生-短片平台</span>
     </a>
 </div>
 
-<footer class="pb-10 text-center text-slate-500 text-xs">
-    © 2026 Harfock Games    <button onclick="location.reload(true)" class="sp-btn" style="background:#444;">↻</button>
+<footer style="padding-bottom: 40px; text-align: center; color: #64748b; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+    © 2026 Harfock Games 
+    <button onclick="location.reload(true)" style="background: #444; color: #FFD700; border: 2px solid #000; border-radius: 8px; width: 36px; height: 36px; cursor: pointer; font-weight: bold;">↻</button>
 </footer>
 
 </body>
